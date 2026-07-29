@@ -208,15 +208,11 @@
   --ch2-map-fade: calc(var(--x) * 5);
   --ch2-map-cover: calc(var(--vh-px, 100svh) * 0.92);
   --ch2-map-ar: 0.45;
-  /* ★ 地圖圖片實際顯示寬度（跟 background-size 用同一條公式，抽成變數避免重複、確保鎖定同步） */
-  --ch2-map-w-px: max(var(--ch2-map-w), calc(var(--ch2-map-cover) / var(--ch2-map-ar)));
   --ch2-pulse-sec: 3;
-  /* ★ 電腦版藍點座標：改用 calc() 依「藍點在原圖的實際像素位置」(1058px, 431px ／原圖 2400×1000)
-     反推容器內位置，跟地圖圖片的縮放/位移公式（background-size + background-position，見下方
-     .ch2-map-gray/.ch2-map-color 規則）完全同步 → 視窗縮放時藍點與雷達圓心永遠對齊。
-     手機版另在 @media(max-width:768px) 用同樣方法覆寫（約第 313 行）。 */
-  --ch2-pulse-cx: calc(50% + var(--ch2-map-shift-x) - var(--ch2-map-w-px) * 0.059167);
-  --ch2-pulse-cy: calc(var(--ch2-map-w-px) * 0.179583);
+  /* ★ 電腦版藍點座標（單純百分比，可直接在瀏覽器開發者工具改數字校準）
+     手機版另在 @media(max-width:768px) 覆寫（約第 313 行）。 */
+  --ch2-pulse-cx: 44%;
+  --ch2-pulse-cy: 43%;
   --ch2-marquee-sec: 25;   /* 由 JS 依「一組寬度 / 固定速度」覆寫，數量多少都同速 */
   --ch2-box-h: calc(var(--x) * 1.8);
   --ch2-box-radius: 10px;
@@ -311,13 +307,9 @@
     --ch2-map-w: 100vw;
     --ch2-map-shift-x: 0px;
     --ch2-map-shift-y: calc(var(--x) * -3);
-    /* ★ 手機版雷達脈動起點：獨立於電腦版（第 212-218 行）另外覆寫，因為手機版地圖用不同圖檔、
-       background-size/position 也不同（見 1105-1113 行的 .ch2-map-gray/.ch2-map-color 覆寫）。
-       同樣用 calc() 依「藍點在原圖的實際像素位置」(297px, 460px ／原圖 1708×2600) 反推，
-       跟手機版地圖的 background-size:var(--ch2-map-w) auto、
-       background-position:center var(--ch2-map-shift-y) 同步鎖定。 */
-    --ch2-pulse-cx: calc(50% - var(--ch2-map-w) * 0.326113);
-    --ch2-pulse-cy: calc(var(--ch2-map-shift-y) + var(--ch2-map-w) * 0.269321);
+    /* ★ 手機版藍點座標（單純百分比，獨立於電腦版，可直接改數字校準） */
+    --ch2-pulse-cx: 17%;
+    --ch2-pulse-cy: 18%;
     --ch2-box-h: calc(var(--x) * 3.2);
     --ch2-box-bottom: calc(var(--x) * 2);
 
@@ -991,7 +983,7 @@ a{ color:inherit; text-decoration:none; }
   inset:0;
   background-image:url('https://img.shoplineapp.com/media/image_clips/6a69b8ec8f5c01e9cf504baa/original.png?1785313516=&owner_id=6572a1b95ad192005192397e');
   background-repeat:no-repeat;
-  background-size:var(--ch2-map-w-px) auto;
+  background-size:max(var(--ch2-map-w), calc(var(--ch2-map-cover) / var(--ch2-map-ar))) auto;
   background-position:calc(50% + var(--ch2-map-shift-x)) top;
 }
 .ch2-map-color{
