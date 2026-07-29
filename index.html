@@ -208,11 +208,16 @@
   --ch2-map-fade: calc(var(--x) * 5);
   --ch2-map-cover: calc(var(--vh-px, 100svh) * 0.92);
   --ch2-map-ar: 0.45;
+  /* ★ 地圖圖片實際顯示寬度（跟 background-size 用同一條公式，抽成變數避免重複、確保鎖定同步） */
+  --ch2-map-w-px: max(var(--ch2-map-w), calc(var(--ch2-map-cover) / var(--ch2-map-ar)));
   --ch2-pulse-sec: 3;
-  /* ★ 電腦版藍點座標（單純百分比，可直接在瀏覽器開發者工具改數字校準）
-     手機版另在 @media(max-width:768px) 覆寫（約第 313 行）。 */
-  --ch2-pulse-cx: 44%;
-  --ch2-pulse-cy: 43%;
+  --ch2-pulse-max: 300%;
+  --ch2-pulse-start: 60%;  /* 脈衝變可見那一幀（20%）的大小；手機版另外覆寫成 30% */
+  /* ★ 電腦版脈衝定位：視窗最窄（769px）時 25%/80%，最寬（1600px）時 45%/55%，
+     中間依視窗寬度線性內插（跟 --x 用同一組 769px～1600px 基準）。 */
+  --ch2-pulse-t: clamp(0, calc((100vw - 769px) / 831px), 1);
+  --ch2-pulse-cx: calc(25% + var(--ch2-pulse-t) * 20%);
+  --ch2-pulse-cy: calc(80% - var(--ch2-pulse-t) * 25%);
   --ch2-marquee-sec: 25;   /* 由 JS 依「一組寬度 / 固定速度」覆寫，數量多少都同速 */
   --ch2-box-h: calc(var(--x) * 1.8);
   --ch2-box-radius: 10px;
@@ -307,9 +312,15 @@
     --ch2-map-w: 100vw;
     --ch2-map-shift-x: 0px;
     --ch2-map-shift-y: calc(var(--x) * -3);
-    /* ★ 手機版藍點座標（單純百分比，獨立於電腦版，可直接改數字校準） */
-    --ch2-pulse-cx: 17%;
-    --ch2-pulse-cy: 18%;
+    /* ★ 手機版脈衝圓心固定座標（25%/20%）。手機版 mask-size 已鎖死 100% 不動畫
+       （見 1131 行附近 .ch2-map-color 覆寫），所以這裡用「%」是安全的——換算基準
+       （容器尺寸－圖層尺寸）永遠固定，不會有任何位移。 */
+    --ch2-pulse-cx: 30%;
+    --ch2-pulse-cy: 30%;
+    /* ★ 手機版脈衝半徑（長度單位，不是 mask-size 的百分比）：起始可見半徑（20% 那一幀）
+       跟最大半徑，都可以直接調整這兩個數字微調視覺大小，不影響圓心定位。 */
+    --ch2-pulse-start-r: 24vw;
+    --ch2-pulse-max-r: 160vw;
     --ch2-box-h: calc(var(--x) * 3.2);
     --ch2-box-bottom: calc(var(--x) * 2);
 
@@ -983,7 +994,7 @@ a{ color:inherit; text-decoration:none; }
   inset:0;
   background-image:url('https://img.shoplineapp.com/media/image_clips/6a69b8ec8f5c01e9cf504baa/original.png?1785313516=&owner_id=6572a1b95ad192005192397e');
   background-repeat:no-repeat;
-  background-size:max(var(--ch2-map-w), calc(var(--ch2-map-cover) / var(--ch2-map-ar))) auto;
+  background-size:var(--ch2-map-w-px) auto;
   background-position:calc(50% + var(--ch2-map-shift-x)) top;
 }
 .ch2-map-color{
@@ -1115,14 +1126,45 @@ a{ color:inherit; text-decoration:none; }
   }
   .ch2-map-color{
     background-image:url('https://img.shoplineapp.com/media/image_clips/6a69ba97a427afced678ad77/original.png?1785313942=&owner_id=6572a1b95ad192005192397e');
+    /* ★ 手機版脈衝改用另一套機制：不再動畫 mask-size（那正是造成位移／跳動的根源——
+       mask-position 的「%」換算基準是「容器尺寸－目前 mask-size 換算出的圖層尺寸」，
+       只要 mask-size 還在動，這個基準就一直變，圓心就會被拉著跑，甚至跳動）。
+       這裡把 mask-size 鎖死在 100% 100%（跟容器一樣大、永遠不變），圓心改用漸層函式
+       自己的 at cx cy 座標固定（同樣是「%」，但因為圖層大小已經凍結不動，這裡的「%」
+       換算基準永遠固定，不會有任何位移）。真正「長大」的效果改成動畫漸層自己的半徑
+       （--ch2-pulse-r，長度單位，見下方 @keyframes ch2pulseMobile 與 @property 宣告，
+       讓瀏覽器能平滑內插這個自訂屬性，不會用跳的）。 */
+    -webkit-mask-image:radial-gradient(circle var(--ch2-pulse-r, 0px) at var(--ch2-pulse-cx) var(--ch2-pulse-cy), #000 55%, transparent 72%);
+    mask-image:radial-gradient(circle var(--ch2-pulse-r, 0px) at var(--ch2-pulse-cx) var(--ch2-pulse-cy), #000 55%, transparent 72%);
+    -webkit-mask-size:100% 100%;
+    mask-size:100% 100%;
+    -webkit-mask-position:0 0;
+    mask-position:0 0;
+    will-change:opacity;
+    animation:ch2pulseMobile calc(var(--ch2-pulse-sec) * 1s) linear infinite;
   }
+}
+
+@property --ch2-pulse-r{
+  syntax:'<length>';
+  inherits:false;
+  initial-value:0px;
 }
 
 @keyframes ch2pulse{
   0%{   -webkit-mask-size:0% 0%;     mask-size:0% 0%;     opacity:0; }
-  20%{  opacity:1; }
+  20%{  -webkit-mask-size:var(--ch2-pulse-start, 60%) var(--ch2-pulse-start, 60%); mask-size:var(--ch2-pulse-start, 60%) var(--ch2-pulse-start, 60%); opacity:1; }
   65%{  opacity:1; }
-  100%{ -webkit-mask-size:300% 300%; mask-size:300% 300%; opacity:0; }
+  100%{ -webkit-mask-size:var(--ch2-pulse-max, 300%) var(--ch2-pulse-max, 300%); mask-size:var(--ch2-pulse-max, 300%) var(--ch2-pulse-max, 300%); opacity:0; }
+}
+
+/* ★ 手機版專用：只動畫半徑（長度），完全不碰 mask-size / mask-position，
+   圓心 100% 固定在 --ch2-pulse-cx / --ch2-pulse-cy，絕對不會位移。 */
+@keyframes ch2pulseMobile{
+  0%{   --ch2-pulse-r:0px;                        opacity:0; }
+  20%{  --ch2-pulse-r:var(--ch2-pulse-start-r);    opacity:1; }
+  65%{  opacity:1; }
+  100%{ --ch2-pulse-r:var(--ch2-pulse-max-r);      opacity:0; }
 }
 
 /* ==================================================================
